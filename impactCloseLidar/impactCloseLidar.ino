@@ -1,14 +1,16 @@
+
 #include <Arduino.h>
 #include <Wire.h>
 #include <TFLI2C.h>
-#include <LiquidCrystal_I2C.h>
+
+// #include <LiquidCrystal_I2C.h>
+// LiquidCrystal_I2C lcd(0x27, 20, 4);
 
 TFLI2C tflI2C;
 
 int16_t tfDist;
 int16_t tfAddr = TFL_DEF_ADR;
-LiquidCrystal_I2C lcd(0x27, 20, 4);
-const int buzzerPin = 5;
+const int buzzerPin = 2;
 float distance;
 float distanceChange;
 float closingSpeed;
@@ -18,25 +20,26 @@ const int arraySize = 20;
 float closingSpeeds[arraySize];
 float distances[arraySize];
 
-const unsigned long loopPeriod = 500;
+const unsigned long loopPeriod = 100;
 float timeSinceLast;
 unsigned long lastLoop;
 unsigned long lastReading;
 
 bool incident = false;
-bool inflate = false;
+bool deploy = false;
 
-int triggerMinDist = 20; // minimum distance to START incident
-int triggerMinCS = 200; // closing speed to trigger incident (cm/s)
+int triggerMinDist = 20;  // minimum distance to START incident
+int triggerCS = 200;   // closing speed to trigger incident (cm/s)
+
+int canIncCS = 1;
 
 void setup() {
   Serial.begin(9600);
   Wire.begin();
   pinMode(buzzerPin, OUTPUT);
-
-  lcd.init();
-  lcd.clear();
-  lcd.backlight();
+  // lcd.init();
+  // lcd.clear();
+  // lcd.backlight();
 }
 
 void loop() {
@@ -47,7 +50,7 @@ void loop() {
     // Measurements
     distanceChange = distance - tfDist;
     distance = tfDist;
-    closingSpeed = distanceChange / (timeSinceLast/1000);
+    closingSpeed = distanceChange / (timeSinceLast / 1000);
     timeToImpact = distance / closingSpeed;
 
     // Shuffle along values
@@ -68,12 +71,13 @@ void loop() {
     // TRIGGER CHECK
     if (!incident) {
       incident = triggerIncident();
-    } 
-    
-    if(incident) {
-      if (inflate && tfDist < 200 && closingSpeed > 2) {
+    }
+
+    if (incident) {
+      monitorIncident();
+      if (deploy) {
         tone(buzzerPin, 500);
-      } else {
+        delay(10);
         noTone(buzzerPin);
       }
     }
@@ -84,5 +88,4 @@ void loop() {
     // Wait for the loop period to complete
   }
   lastLoop = millis();
-
 }
