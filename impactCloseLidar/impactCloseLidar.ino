@@ -10,33 +10,45 @@ TFLI2C tflI2C;
 
 int16_t tfDist;
 int16_t tfAddr = TFL_DEF_ADR;
-const int buzzerPin = 2;
 float distance;
 float distanceChange;
 float closingSpeed;
 float timeToImpact;
+int reportLive = 12;
+int reportIncident = 13;
+int reportDeploy = 15;
 
-const int arraySize = 20;
-float closingSpeeds[arraySize];
-float distances[arraySize];
-
+// LOOP PERIOD VARS
 const unsigned long loopPeriod = 100;
 float timeSinceLast;
 unsigned long lastLoop;
 unsigned long lastReading;
 
+// historic data
+const int recordForSeconds = 60;
+const int historicDataArraySize = recordForSeconds * (1000/loopPeriod);
+float closingSpeeds[historicDataArraySize];
+float distances[historicDataArraySize];
+// INCIDENT TRIGGER VARS
 bool incident = false;
-bool deploy = false;
-
 int triggerMinDist = 20;  // minimum distance to START incident
-int triggerCS = 200;   // closing speed to trigger incident (cm/s)
+int triggerCS = 200;      // closing speed to trigger incident (cm/s)
+float standDownCheckPeriod = 1; // period to look back over before deploying (in seconds)
+int standDownMaxCS = 1;
 
-int canIncCS = 1;
+// MONITOR VARS
+bool deploy = false;
+float deployCheckPeriod = 1; // period to look back over before deploying (in seconds)
+int deployCS = triggerCS; // might vary later but for now it's same as trigger
 
 void setup() {
   Serial.begin(9600);
   Wire.begin();
-  pinMode(buzzerPin, OUTPUT);
+  pinMode(0, OUTPUT);
+  pinMode(reportLive, OUTPUT);
+  pinMode(reportIncident, OUTPUT);
+  pinMode(reportDeploy, OUTPUT);
+
   // lcd.init();
   // lcd.clear();
   // lcd.backlight();
@@ -54,7 +66,7 @@ void loop() {
     timeToImpact = distance / closingSpeed;
 
     // Shuffle along values
-    for (int i = arraySize - 1; i >= 1; i--) {
+    for (int i = historicDataArraySize - 1; i >= 1; i--) {
       closingSpeeds[i] = closingSpeeds[i - 1];
       distances[i] = distances[i - 1];
     }
@@ -75,12 +87,17 @@ void loop() {
 
     if (incident) {
       monitorIncident();
-      if (deploy) {
-        tone(buzzerPin, 500);
-        delay(10);
-        noTone(buzzerPin);
-      }
     }
+
+    int reportPin = reportLive;
+    if (deploy) {
+      reportPin = reportDeploy;
+    } else if (incident) {
+      reportPin = reportIncident;
+    }
+    digitalWrite(reportPin, HIGH);
+    delay(10);
+    digitalWrite(reportPin, LOW);
   }
 
   // Stabilize frequency to loopPeriod (100ms)
