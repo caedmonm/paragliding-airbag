@@ -25,7 +25,7 @@ unsigned long lastLoop;
 unsigned long lastReading;
 
 // historic data
-const int recordForSeconds = 60;
+const int recordForSeconds = 5;
 const int historicDataArraySize = recordForSeconds * (1000/loopPeriod);
 float closingSpeeds[historicDataArraySize];
 float distances[historicDataArraySize];
@@ -33,12 +33,12 @@ float distances[historicDataArraySize];
 bool incident = false;
 int triggerMinDist = 20;  // minimum distance to START incident
 int triggerCS = 200;      // closing speed to trigger incident (cm/s)
-float standDownCheckPeriod = 1; // period to look back over before deploying (in seconds)
-int standDownMaxCS = 1;
+float standDownCheckPeriod = 2000; // period to look back over before deploying (in ms)
+int standDownMaxCS = 100; // cm/s to standdown
 
 // MONITOR VARS
 bool deploy = false;
-float deployCheckPeriod = 1; // period to look back over before deploying (in seconds)
+float deployCheckPeriod = 1000; // period to look back over before deploying (in ms)
 int deployCS = triggerCS; // might vary later but for now it's same as trigger
 
 void setup() {
