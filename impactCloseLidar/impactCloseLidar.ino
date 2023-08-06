@@ -39,7 +39,7 @@ int standDownMaxCS = 100; // cm/s to standdown
 // MONITOR VARS
 bool deploy = false;
 float deployCheckPeriod = 1000; // period to look back over before deploying (in ms)
-int deployCS = triggerCS; // might vary later but for now it's same as trigger
+int deployCS = 50; // might vary later but for now it's same as trigger
 
 void setup() {
   Serial.begin(9600);
