@@ -1,9 +1,10 @@
 void monitorIncident() {
   // Check if it should stand down
   int numberToCheck = standDownCheckPeriod / loopPeriod;
+
+  // To stand down ALL readings within the check period should be less than standDownMaxCS
   bool shouldStandDown = true;
   for (int i = 0; i < numberToCheck; i++) {
-    // Serial.println("Checking SD:" + String(closingSpeeds[i]));
     if (closingSpeeds[i] > standDownMaxCS) {
       shouldStandDown = false;
     }
@@ -14,12 +15,11 @@ void monitorIncident() {
     deploy = false;
     Serial.println("Stand down");
   } else {
-    // look back over past readings to check if they're consistenly heading for impact
     int numberToCheck = deployCheckPeriod / loopPeriod;
-    Serial.println("numberToCheck" + String(numberToCheck));
+
+    // To deploy ALL readings should be > deployCS value
     bool shouldDeploy = true;
     for (int i = 0; i < numberToCheck; i++) {
-      // Serial.println("Checking DP:" + String(closingSpeeds[i]));
       if (closingSpeeds[i] < deployCS) {
         shouldDeploy = false;
       }

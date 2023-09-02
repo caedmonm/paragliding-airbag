@@ -17,6 +17,7 @@ float timeToImpact;
 int reportLive = 12;
 int reportIncident = 13;
 int reportDeploy = 15;
+int resetButtonPin = 2;
 
 // LOOP PERIOD VARS
 const unsigned long loopPeriod = 100;
@@ -26,20 +27,21 @@ unsigned long lastReading;
 
 // historic data
 const int recordForSeconds = 5;
-const int historicDataArraySize = recordForSeconds * (1000/loopPeriod);
+const int historicDataArraySize = recordForSeconds * (1000 / loopPeriod);
 float closingSpeeds[historicDataArraySize];
 float distances[historicDataArraySize];
+
 // INCIDENT TRIGGER VARS
 bool incident = false;
-int triggerMinDist = 20;  // minimum distance to START incident
-int triggerCS = 200;      // closing speed to trigger incident (cm/s)
-float standDownCheckPeriod = 2000; // period to look back over before deploying (in ms)
-int standDownMaxCS = 100; // cm/s to standdown
+int triggerMinDist = 20;            // minimum distance to START incident
+int triggerCS = 200;                // closing speed to trigger incident (cm/s)
+float standDownCheckPeriod = 2000;  // period to look back over before deploying (in ms)
+int standDownMaxCS = 100;           // cm/s to standdown
 
 // MONITOR VARS
 bool deploy = false;
-float deployCheckPeriod = 1000; // period to look back over before deploying (in ms)
-int deployCS = 50; // might vary later but for now it's same as trigger
+float deployCheckPeriod = 1000;  // period to look back over before deploying (in ms)
+int deployCS = 50;               // might vary later but for now it's same as trigger
 
 void setup() {
   Serial.begin(9600);
@@ -48,6 +50,7 @@ void setup() {
   pinMode(reportLive, OUTPUT);
   pinMode(reportIncident, OUTPUT);
   pinMode(reportDeploy, OUTPUT);
+  pinMode(resetButtonPin, INPUT_PULLUP);
 
   // lcd.init();
   // lcd.clear();
@@ -55,52 +58,61 @@ void setup() {
 }
 
 void loop() {
-  if (tflI2C.getData(tfDist, tfAddr)) {
-    timeSinceLast = millis() - lastReading;
-    lastReading = millis();
-
-    // Measurements
-    distanceChange = distance - tfDist;
-    distance = tfDist;
-    closingSpeed = distanceChange / (timeSinceLast / 1000);
-    timeToImpact = distance / closingSpeed;
-
-    // Shuffle along values
-    for (int i = historicDataArraySize - 1; i >= 1; i--) {
-      closingSpeeds[i] = closingSpeeds[i - 1];
-      distances[i] = distances[i - 1];
+cd  int reportPin = reportLive;
+  if (deploy) {
+    reportPin = reportDeploy;
+    digitalWrite(reportPin, HIGH);
+    if (!digitalRead(resetButtonPin)) {
+      digitalWrite(reportPin, LOW);
+      deploy = false;
     }
+  } else {
+    if (tflI2C.getData(tfDist, tfAddr)) {
+      timeSinceLast = millis() - lastReading;
+      lastReading = millis();
 
-    // Add new data to the arrays
-    closingSpeeds[0] = closingSpeed;
-    distances[0] = distance;
+      // Measurements
+      distanceChange = distance - tfDist;
+      distance = tfDist;
+      closingSpeed = distanceChange / (timeSinceLast / 1000);
+      timeToImpact = distance / closingSpeed;
 
-    // SCREEN OUTPUT
-    LCDOutput();
-    // SERIAL OUTPUT
-    serialOutput();
+      // Shuffle along values
+      for (int i = historicDataArraySize - 1; i >= 1; i--) {
+        closingSpeeds[i] = closingSpeeds[i - 1];
+        distances[i] = distances[i - 1];
+      }
 
-    // TRIGGER CHECK
-    if (!incident) {
-      incident = triggerIncident();
-    }
+      // Add new data to the arrays
+      closingSpeeds[0] = closingSpeed;
+      distances[0] = distance;
 
-    if (incident) {
-      monitorIncident();
-    }
+      // SCREEN OUTPUT
+      LCDOutput();
+      // SERIAL OUTPUT
+      serialOutput();
 
-    int reportPin = reportLive;
-    if (deploy) {
-      reportPin = reportDeploy;
-    } else if (incident) {
-      reportPin = reportIncident;
+      // TRIGGER CHECK
+      if (!incident) {
+        incident = triggerIncident();
+      }
+
+      if (incident) {
+        monitorIncident();
+      }
+
+      if (incident) {
+        reportPin = reportIncident;
+      }
     }
     digitalWrite(reportPin, HIGH);
     delay(10);
     digitalWrite(reportPin, LOW);
   }
 
-  // Stabilize frequency to loopPeriod (100ms)
+
+
+  // Stabilize frequency to loopPeriod
   while (millis() - lastLoop < loopPeriod) {
     // Wait for the loop period to complete
   }
